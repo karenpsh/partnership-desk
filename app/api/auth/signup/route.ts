@@ -8,10 +8,12 @@ import {
   forbiddenCrossOrigin,
 } from "@/lib/security";
 
-const ROLES = ["Manager", "Head", "Approver", "Reviewer", "Admin"];
-
 // Server-side sign-up so the session is established with hardened httpOnly
 // cookies (no client-JS session handling anywhere in the app).
+//
+// Roles are NOT self-assigned: the database trigger (handle_new_user) decides
+// the role authoritatively — first user is Admin, everyone else is Manager —
+// and ignores any client-supplied role. So we do not accept or forward a role.
 export async function POST(req: NextRequest) {
   if (!isSameOrigin(req)) return forbiddenCrossOrigin();
 
@@ -19,7 +21,7 @@ export async function POST(req: NextRequest) {
   const rl = rateLimit(`signup:${ip}`, 10, 15 * 60_000);
   if (!rl.ok) return tooManyRequests(rl.retryAfter);
 
-  let body: { email?: string; password?: string; fullName?: string; role?: string };
+  let body: { email?: string; password?: string; fullName?: string };
   try {
     body = await req.json();
   } catch {
@@ -28,7 +30,6 @@ export async function POST(req: NextRequest) {
   const email = (body.email ?? "").trim().toLowerCase();
   const password = body.password ?? "";
   const fullName = (body.fullName ?? "").trim();
-  const role = ROLES.includes(body.role ?? "") ? body.role : "Manager";
 
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return NextResponse.json({ error: "A valid email is required." }, { status: 400 });
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: fullName, role } },
+    options: { data: { full_name: fullName } },
   });
   if (error || !data.user) {
     console.warn("[signup:failed]", { email, ip });

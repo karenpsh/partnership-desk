@@ -25,9 +25,24 @@ async function signup(browser, email, name, role) {
   await page.getByLabel("Full name").fill(name);
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PW);
-  await page.getByLabel(/Role/).selectOption(role);
-  await page.getByRole("button", { name: "Create account" }).last().click();
-  await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 20000 });
+  const [signupResp] = await Promise.all([
+    page.waitForResponse((r) => r.url().includes("/api/auth/signup"), { timeout: 15000 }).catch(() => null),
+    page.getByRole("button", { name: "Create account" }).last().click(),
+  ]);
+  try {
+    await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 20000 });
+  } catch (e) {
+    const errBox = await page.locator(".bg-red-50").first().textContent().catch(() => null);
+    console.log(`SIGNUP FAIL ${email} role=${role} resp=${signupResp ? signupResp.status() : "none"} errBox=${errBox} url=${page.url()}`);
+    throw e;
+  }
+  // Roles are no longer self-selected at signup; an Admin assigns them. The
+  // test acts as that Admin by setting the role directly (always — the first
+  // signup bootstraps as Admin, so we force every role for determinism), then
+  // reloads so the server-queried role is picked up.
+  // Signup lowercases the email server-side, so match the stored (lowercase) form.
+  execSync(`psql -h /tmp -p 54322 -U postgres -c ${JSON.stringify(`update profiles set role='${role}' where email='${email.toLowerCase()}'`)}`);
+  await page.reload({ waitUntil: "networkidle" });
   return { ctx, page };
 }
 // same-origin authed fetch inside the page; returns {status, body, headers}
@@ -130,6 +145,14 @@ async function apiFetch(page, path, opts = {}) {
     const adminExport = await apiFetch(Admin.page, `/api/admin/audit-export`);
     check("5-authz", "Admin audit export -> 200", adminExport.status === 200, `got ${adminExport.status}`);
     // Admin cannot edit deals (no New Deal); confirm createDeal action rejects role via API is covered by RLS/guards.
+
+    // privilege escalation: a direct GoTrue signup cannot self-assign a role
+    const escEmail = `escpriv_${S}@aeonbank.test`;
+    await anon.evaluate(async ([shim, email]) => {
+      await fetch(`${shim}/auth/v1/signup`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password: "secret123", data: { full_name: "Esc", role: "Admin" } }) });
+    }, [SHIM, escEmail]);
+    const escRole = psql(`select role from profiles where email='${escEmail}'`);
+    check("5-authz", "self-assigned role at signup is ignored (no privilege escalation)", escRole === "Manager", `got ${escRole}`);
 
     // ── 6. Secrets Management ────────────────────────────────────────────
     let bundleLeak = "";

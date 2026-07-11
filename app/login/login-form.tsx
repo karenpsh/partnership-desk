@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-const ROLES = ["Manager", "Head", "Approver", "Reviewer", "Admin"] as const;
-
 export function LoginForm() {
   const params = useSearchParams();
   const next = params.get("next") || "/";
@@ -13,7 +11,6 @@ export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState<(typeof ROLES)[number]>("Manager");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -39,11 +36,12 @@ export function LoginForm() {
           setError("Your name is required.");
           return;
         }
-        // Server-side sign-up (hardened httpOnly session cookies).
+        // Server-side sign-up (hardened httpOnly session cookies). Role is
+        // assigned by the server/DB, never chosen here.
         const res = await fetch("/api/auth/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, fullName: fullName.trim(), role }),
+          body: JSON.stringify({ email, password, fullName: fullName.trim() }),
         });
         if (!res.ok) {
           const payload = await res.json().catch(() => ({}));
@@ -122,17 +120,10 @@ export function LoginForm() {
       </label>
 
       {mode === "signup" && (
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium text-neutral-700">Role (demo)</span>
-          <select value={role} onChange={(e) => setRole(e.target.value as typeof role)} className={input}>
-            {ROLES.map((r) => (
-              <option key={r}>{r}</option>
-            ))}
-          </select>
-          <span className="mt-1 block text-xs text-neutral-400">
-            In production this comes from the bank directory / Admin, not self-selected.
-          </span>
-        </label>
+        <p className="rounded-md bg-neutral-50 px-3 py-2 text-xs text-neutral-500">
+          New accounts start as a Manager. The first account created bootstraps as
+          Admin; roles are assigned by an Admin thereafter.
+        </p>
       )}
 
       <button
