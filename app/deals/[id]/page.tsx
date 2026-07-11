@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { computeChips, daysSinceStageChange, formatRM, weightedValue } from "@/lib/stages";
-import type { Deal, EvidenceItem, StageOutput } from "@/lib/types";
+import type { ContactReport, Deal, EvidenceItem, Lesson, StageOutput } from "@/lib/types";
 import { StatusChips } from "@/app/components/chips";
 import { DealEditForm } from "./deal-edit-form";
 import { EvidencePanel } from "./evidence-panel";
@@ -25,15 +25,19 @@ export default async function DealPage({
   if (error || !data) notFound();
   const deal = data as Deal;
 
-  const [evidenceRes, outputsRes, escRes] = await Promise.all([
+  const [evidenceRes, outputsRes, escRes, contactsRes, lessonsRes] = await Promise.all([
     supabase.from("evidence_items").select("*").eq("deal_id", id).order("created_at", { ascending: true }),
     supabase.from("stage_outputs").select("*").eq("deal_id", id),
     supabase.from("escalations").select("*").eq("deal_id", id).eq("status", "Open"),
+    supabase.from("contact_reports").select("*").eq("deal_id", id).order("contact_date", { ascending: false }),
+    supabase.from("lessons").select("*").eq("deal_id", id).order("created_at", { ascending: false }),
   ]);
 
   const evidence = (evidenceRes.data ?? []) as EvidenceItem[];
   const outputs = (outputsRes.data ?? []) as StageOutput[];
   const openEscalations = escRes.data ?? [];
+  const contactReports = (contactsRes.data ?? []) as ContactReport[];
+  const lessons = (lessonsRes.data ?? []) as Lesson[];
   const chips = computeChips(deal, new Set(openEscalations.length ? [deal.id] : []));
 
   return (
@@ -67,7 +71,13 @@ export default async function DealPage({
       )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
-        <StageWorkflow deal={deal} evidence={evidence} outputs={outputs} />
+        <StageWorkflow
+          deal={deal}
+          evidence={evidence}
+          outputs={outputs}
+          contactReports={contactReports}
+          lessons={lessons}
+        />
         <div className="space-y-6">
           <section className="rounded-lg border border-neutral-200 bg-white p-5">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">

@@ -2,13 +2,14 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { daysUntilFollowup } from "@/lib/stages";
 import type { Deal, Escalation, StallReview } from "@/lib/types";
+import { EscalationCard } from "./escalation-card";
 
 export const dynamic = "force-dynamic";
 
 export default async function NotificationsPage() {
   const supabase = await createClient();
   const [dealsRes, escRes, stallRes] = await Promise.all([
-    supabase.from("deals").select("*").eq("status", "Active"),
+    supabase.from("deals").select("*"),
     supabase.from("escalations").select("*").eq("status", "Open"),
     supabase.from("stall_reviews").select("*").is("decision", null),
   ]);
@@ -28,6 +29,7 @@ export default async function NotificationsPage() {
   const companyById = new Map(deals.map((d) => [d.id, d.company]));
 
   const overdue = deals
+    .filter((d) => d.status === "Active")
     .map((d) => ({ deal: d, days: daysUntilFollowup(d) }))
     .filter((x): x is { deal: Deal; days: number } => x.days != null && x.days < 0)
     .sort((a, b) => a.days - b.days);
@@ -55,16 +57,11 @@ export default async function NotificationsPage() {
             Open escalations ({escalations.length})
           </h2>
           {escalations.map((e) => (
-            <Link
+            <EscalationCard
               key={e.id}
-              href={`/deals/${e.deal_id}`}
-              className="block rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 hover:bg-violet-100"
-            >
-              <p className="text-sm font-medium text-violet-900">
-                {companyById.get(e.deal_id) ?? "Deal"} — routed to {e.assigned_to_role}
-              </p>
-              <p className="mt-0.5 text-sm text-violet-800">{e.ai_summary ?? "Management support requested."}</p>
-            </Link>
+              escalation={e}
+              company={companyById.get(e.deal_id) ?? "Deal"}
+            />
           ))}
         </section>
       )}

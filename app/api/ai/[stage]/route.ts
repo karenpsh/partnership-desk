@@ -6,7 +6,8 @@ import {
   generateStageOutput,
   type AiStageKey,
 } from "@/lib/ai";
-import type { Deal } from "@/lib/types";
+import { proposalGenerationBlockers } from "@/lib/stages";
+import type { Deal, EvidenceItem } from "@/lib/types";
 
 // POST /api/ai/{triage|research|options|proposal|meeting_prep|contact_analysis}
 // Body: { dealId: string, input?: string, actor?: string }
@@ -44,6 +45,23 @@ export async function POST(
     return NextResponse.json({ error: "Deal not found." }, { status: 404 });
   }
   const deal = dealRow as Deal;
+
+  // Hard gate: proposal generation is blocked while material Claimed
+  // evidence stands unwaived (PRD F2 Stage 3). Enforced server-side so it
+  // cannot be bypassed by prompting or a modified client.
+  if (stage === "proposal") {
+    const { data: evidenceRows } = await supabase
+      .from("evidence_items")
+      .select("*")
+      .eq("deal_id", dealId);
+    const blockers = proposalGenerationBlockers((evidenceRows ?? []) as EvidenceItem[]);
+    if (blockers.length > 0) {
+      return NextResponse.json(
+        { error: "Proposal generation blocked by Claimed evidence.", blockers },
+        { status: 409 },
+      );
+    }
+  }
 
   // Build the model input from deal context plus the caller's raw input.
   const context = [
