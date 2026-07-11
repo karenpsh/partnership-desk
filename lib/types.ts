@@ -19,7 +19,7 @@ export type Stage =
   | "Live"
   | "Closeout";
 
-export type DealStatus = "Active" | "Parked" | "Killed" | "Live";
+export type DealStatus = "Active" | "Parked" | "Killed" | "Live" | "PendingInbound";
 export type Confidence = "High" | "Med" | "Low";
 export type DepositImpact = "Positive" | "Neutral" | "None";
 export type Priority = "High" | "Medium" | "Low";

@@ -60,6 +60,17 @@ export default async function DealPage({
           {deal.vertical} · {deal.source} · Owner: {deal.owner_name ?? "—"} · Weighted value:{" "}
           <span className="font-medium text-neutral-700">{formatRM(weightedValue(deal))}</span> · In
           stage {daysSinceStageChange(deal)} day{daysSinceStageChange(deal) === 1 ? "" : "s"}
+          {deal.next_followup_date && (
+            <>
+              {" · "}
+              <a
+                href={`/api/deals/${deal.id}/calendar`}
+                className="text-violet-700 hover:underline"
+              >
+                Add follow-up to calendar (.ics)
+              </a>
+            </>
+          )}
         </p>
       </div>
 

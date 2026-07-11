@@ -3,8 +3,9 @@ import { NextResponse, type NextRequest } from "next/server";
 
 type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
-// Paths reachable without a session.
-const PUBLIC_PREFIXES = ["/login", "/auth", "/api/jobs"];
+// Paths reachable without a session. The inbound webhook and the cron job are
+// machine-to-machine and authenticate with their own shared secrets.
+const PUBLIC_PREFIXES = ["/login", "/auth", "/api/jobs", "/api/inbound"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/") || pathname === p);

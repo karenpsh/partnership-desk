@@ -63,7 +63,8 @@ export default async function DashboardPage() {
     );
   }
 
-  const deals = (dealsRes.data ?? []) as Deal[];
+  // Exclude PendingInbound (not yet in the pipeline) from all figures.
+  const deals = ((dealsRes.data ?? []) as Deal[]).filter((d) => d.status !== "PendingInbound");
   const outputs = (outputsRes.data ?? []) as StageOutput[];
   const contacts = (contactsRes.data ?? []) as ContactReport[];
 

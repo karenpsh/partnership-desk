@@ -203,7 +203,10 @@ function TriageScreen({ deal, output }: { deal: Deal; output: StageOutput | null
       }
     | null
     | undefined;
-  const isQueued = output?.ai_output_source === "queued";
+  // 'queued' = a prior AI attempt failed; 'inbound' = created from a forwarded
+  // email. Both pre-fill the paste box with the saved input for Stage 0.
+  const isQueued =
+    output?.ai_output_source === "queued" || output?.ai_output_source === "inbound";
   const confirmed = output?.confirmed_at != null;
 
   const decide = (verdict: "Pursue" | "Park" | "Decline") => {

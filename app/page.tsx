@@ -25,7 +25,8 @@ export default async function BoardPage() {
     );
   }
 
-  const deals = (dealsRes.data ?? []) as Deal[];
+  // PendingInbound deals live in the Head's inbound queue, not the pipeline.
+  const deals = ((dealsRes.data ?? []) as Deal[]).filter((d) => d.status !== "PendingInbound");
   const openEscalationDealIds = new Set(
     (escRes.data ?? []).map((e) => e.deal_id as string),
   );

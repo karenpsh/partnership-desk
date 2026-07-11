@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getSessionUser, canEditDeals, isAdmin } from "@/lib/auth";
+import { canEditDeals, isAdmin, isHead, type Role } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/actions/auth";
 
 const ROLE_BADGE: Record<string, string> = {
@@ -11,7 +12,36 @@ const ROLE_BADGE: Record<string, string> = {
 };
 
 export async function Header() {
-  const user = await getSessionUser();
+  // One client for auth + queries: getUser() establishes the session on this
+  // exact client, so the follow-up query runs with the user's identity (a
+  // second client instance in the layout can fall back to anon).
+  const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+
+  let user: { role: Role; fullName: string } | null = null;
+  let inboundCount = 0;
+  if (authUser) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, role")
+      .eq("id", authUser.id)
+      .single();
+    const role = (profile?.role as Role) ?? "Manager";
+    user = {
+      role,
+      fullName:
+        (profile?.full_name as string) ??
+        (authUser.user_metadata?.full_name as string) ??
+        authUser.email ??
+        "User",
+    };
+    if (isHead(role)) {
+      const { data } = await supabase.from("deals").select("id").eq("status", "PendingInbound");
+      inboundCount = data?.length ?? 0;
+    }
+  }
 
   return (
     <header className="bg-white border-b border-neutral-200 sticky top-0 z-20">
@@ -35,6 +65,11 @@ export async function Header() {
             <Link href="/knowledge" className="hover:text-neutral-900">
               Knowledge
             </Link>
+            {isHead(user.role) && (
+              <Link href="/inbound" className="hover:text-neutral-900">
+                Inbound{inboundCount > 0 ? ` (${inboundCount})` : ""}
+              </Link>
+            )}
             <Link href="/notifications" className="hover:text-neutral-900">
               Notifications
             </Link>
