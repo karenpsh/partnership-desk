@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { writeAudit } from "@/lib/audit";
+import { createServiceClient } from "@/lib/supabase/service";
 import { sendEmail } from "@/lib/email";
 import type { Deal, StallReview } from "@/lib/types";
 
@@ -22,7 +22,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = await createClient();
+  // The cron job runs with no user session, so it uses the service-role
+  // client (bypasses RLS) to scan all deals and write review tasks / audit
+  // rows. Falls back to the anon client if the service key is missing, in
+  // which case RLS simply limits what it can do — the app never breaks.
+  const supabase = createServiceClient() ?? (await createClient());
+  const audit = (entry: Record<string, unknown>) =>
+    supabase.from("audit_events").insert(entry);
   const today = new Date().toISOString().slice(0, 10);
   const summary = {
     stallReviewsCreated: 0,
@@ -70,7 +76,7 @@ export async function GET(req: NextRequest) {
       });
       if (!error) {
         summary.stallReviewsCreated++;
-        await writeAudit({
+        await audit({
           deal_id: deal.id,
           event_type: "stall_triggered",
           actor: "system",
@@ -95,7 +101,7 @@ export async function GET(req: NextRequest) {
       );
       if (result.sent) summary.followupReminders++;
       else if (result.reason) summary.emailErrors.push(result.reason);
-      await writeAudit({
+      await audit({
         deal_id: deal.id,
         event_type: "followup_reminder",
         actor: "system",
@@ -111,7 +117,7 @@ export async function GET(req: NextRequest) {
       );
       if (result.sent) summary.revisitReminders++;
       else if (result.reason) summary.emailErrors.push(result.reason);
-      await writeAudit({
+      await audit({
         deal_id: deal.id,
         event_type: "followup_reminder",
         actor: "system",

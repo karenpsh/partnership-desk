@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
+import { getSessionUser, isHead } from "@/lib/auth";
 import type { StageActionResult } from "./stage";
 
 const DECISIONS = ["Advance", "Park", "Kill"] as const;
@@ -18,11 +19,16 @@ export async function decideStallReview(input: {
   newRevisitDate?: string;
   decidedBy: string;
 }): Promise<StageActionResult> {
-  const { stallReviewId, decision, newRevisitDate, decidedBy } = input;
+  const { stallReviewId, decision, newRevisitDate } = input;
+  // High risk, Head-only: the deal owner does not hold the casting vote on
+  // their own stalled deal. Enforced server-side and by RLS (stall_reviews
+  // update is Head-only).
+  const user = await getSessionUser();
+  if (!user || !isHead(user.role))
+    return { error: "Only the Head of Partnerships may decide a stall review." };
+  const decidedBy = user.fullName;
   if (!DECISIONS.includes(decision as (typeof DECISIONS)[number]))
     return { error: "Decision must be Advance, Park or Kill." };
-  if (!decidedBy.trim())
-    return { error: "The Head of Partnerships' name is required for a stall decision." };
   if (decision === "Park" && !newRevisitDate)
     return { error: "A new revisit date is required to park a stalled deal." };
 

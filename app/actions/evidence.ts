@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
+import { getSessionUser, canEditDeals, isHead } from "@/lib/auth";
 import type { StageActionResult } from "./stage";
 
 const EVIDENCE_TYPES = ["Verified", "Inferred", "Claimed"];
@@ -15,7 +16,11 @@ export async function addEvidence(input: {
   isMaterial: boolean;
   actor: string;
 }): Promise<StageActionResult> {
-  const { dealId, claim, evidenceType, sourceUrl, isMaterial, actor } = input;
+  const { dealId, claim, evidenceType, sourceUrl, isMaterial } = input;
+  const user = await getSessionUser();
+  if (!user || !canEditDeals(user.role))
+    return { error: "Only Managers and the Head may add evidence." };
+  const actor = user.fullName;
   if (!claim.trim()) return { error: "The claim text is required." };
   if (!EVIDENCE_TYPES.includes(evidenceType)) return { error: "Invalid evidence type." };
   if (evidenceType === "Verified" && !sourceUrl?.trim())
@@ -49,7 +54,11 @@ export async function setEvidenceType(input: {
   sourceUrl?: string;
   actor: string;
 }): Promise<StageActionResult> {
-  const { dealId, evidenceId, evidenceType, sourceUrl, actor } = input;
+  const { dealId, evidenceId, evidenceType, sourceUrl } = input;
+  const user = await getSessionUser();
+  if (!user || !canEditDeals(user.role))
+    return { error: "Only Managers and the Head may change evidence." };
+  const actor = user.fullName;
   if (!EVIDENCE_TYPES.includes(evidenceType)) return { error: "Invalid evidence type." };
   if (evidenceType === "Verified" && !sourceUrl?.trim())
     return { error: "A source URL is required to mark evidence Verified." };
@@ -95,6 +104,9 @@ export async function waiveClaimedEvidence(input: {
   reason: string;
 }): Promise<StageActionResult> {
   const { dealId, evidenceId, waivedBy, reason } = input;
+  const user = await getSessionUser();
+  if (!user || !isHead(user.role))
+    return { error: "Only the Head of Partnerships may waive a Claimed-evidence block." };
   if (!waivedBy.trim()) return { error: "The Head's name is required to waive a Claimed block." };
   if (!reason.trim()) return { error: "A reason is required and will be logged." };
 

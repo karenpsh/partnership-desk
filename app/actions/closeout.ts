@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { writeAudit } from "@/lib/audit";
+import { getSessionUser, canApproveGate, canEditDeals } from "@/lib/auth";
 import type { StageActionResult } from "./stage";
 
 /**
@@ -14,9 +16,13 @@ export async function approveLegalShariahGate(input: {
   approvedBy: string;
   notes?: string;
 }): Promise<StageActionResult> {
-  const { dealId, approvedBy, notes } = input;
-  if (!approvedBy.trim())
-    return { error: "A named Approver is required for the Legal & Shariah gate." };
+  const { dealId, notes } = input;
+  // High risk, named-approver action: only the Approver role (or the Head as
+  // desk owner) may sign off the Legal & Shariah gate.
+  const user = await getSessionUser();
+  if (!user || !canApproveGate(user.role))
+    return { error: "Only an Approver (or the Head) may approve the Legal & Shariah gate." };
+  const approvedBy = user.fullName;
 
   const supabase = await createClient();
   const { data: deal } = await supabase.from("deals").select("*").eq("id", dealId).single();
@@ -24,7 +30,12 @@ export async function approveLegalShariahGate(input: {
   if (deal.stage !== "Legal & Shariah")
     return { error: "The deal is not at the Legal & Shariah gate." };
 
-  const { error } = await supabase
+  // Approvers cannot write deal rows under RLS (deal editing is Manager/Head),
+  // so the gate mark is applied with the service-role client after the
+  // role check above. The approval itself is the audited event of record.
+  const service = createServiceClient();
+  const writer = service ?? supabase;
+  const { error } = await writer
     .from("deals")
     .update({ gate: "Legal & Shariah approved", updated_at: new Date().toISOString() })
     .eq("id", dealId);
@@ -34,7 +45,7 @@ export async function approveLegalShariahGate(input: {
     deal_id: dealId,
     event_type: "gate_approval",
     actor: approvedBy,
-    metadata: { gate: "Legal & Shariah", notes: notes ?? null },
+    metadata: { gate: "Legal & Shariah", approver_role: user.role, notes: notes ?? null },
   });
   revalidatePath(`/deals/${dealId}`);
   return { error: null, ok: true };
@@ -71,6 +82,9 @@ export async function submitCloseout(input: {
     submittedBy,
   } = input;
 
+  const user = await getSessionUser();
+  if (!user || !canEditDeals(user.role))
+    return { error: "Only Managers and the Head may complete closeout." };
   if (!OUTCOMES.includes(outcome as (typeof OUTCOMES)[number]))
     return { error: "Outcome must be Won, Lost or Parked." };
   if (!transferableLesson.trim())

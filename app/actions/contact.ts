@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
+import { getSessionUser, canEditDeals, isApprover, isHead } from "@/lib/auth";
 import type { StageActionResult } from "./stage";
 import type { StageOutput } from "@/lib/types";
 
@@ -47,6 +48,9 @@ export async function createContactReport(input: {
     confirmedBy,
   } = input;
 
+  const user = await getSessionUser();
+  if (!user || !canEditDeals(user.role))
+    return { error: "Only Managers and the Head may log contact reports." };
   if (!contactDate) return { error: "Contact date is required." };
   if (!CHANNELS.includes(channel)) return { error: "Invalid channel." };
   if (!ASK_TYPES.includes(askType)) return { error: "Invalid ask type." };
@@ -177,6 +181,9 @@ export async function resolveEscalation(input: {
   notes: string;
 }): Promise<StageActionResult> {
   const { escalationId, resolvedBy, notes } = input;
+  const user = await getSessionUser();
+  if (!user || !(isApprover(user.role) || isHead(user.role)))
+    return { error: "Escalations are resolved by an Approver (or the Head)." };
   if (!resolvedBy.trim()) return { error: "A named resolver is required." };
 
   const supabase = await createClient();

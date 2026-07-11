@@ -7,6 +7,7 @@ import {
   type AiStageKey,
 } from "@/lib/ai";
 import { proposalGenerationBlockers } from "@/lib/stages";
+import { getSessionUser, canRunAi } from "@/lib/auth";
 import type { Deal, EvidenceItem } from "@/lib/types";
 
 // POST /api/ai/{triage|research|options|proposal|meeting_prep|contact_analysis}
@@ -24,13 +25,27 @@ export async function POST(
     return NextResponse.json({ error: `Unknown AI stage: ${rawStage}` }, { status: 404 });
   }
 
-  let body: { dealId?: string; input?: string; actor?: string };
+  // Only Managers and the Head may run the AI copilot. Approver / Reviewer /
+  // Admin are read-only over deal work and get a hard 403.
+  const user = await getSessionUser();
+  if (!user) {
+    return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+  }
+  if (!canRunAi(user.role)) {
+    return NextResponse.json(
+      { error: `Your role (${user.role}) may not run AI stages.` },
+      { status: 403 },
+    );
+  }
+
+  let body: { dealId?: string; input?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
-  const { dealId, input = "", actor = "unknown" } = body;
+  const { dealId, input = "" } = body;
+  const actor = user.fullName;
   if (!dealId) {
     return NextResponse.json({ error: "dealId is required." }, { status: 400 });
   }

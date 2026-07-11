@@ -3,6 +3,13 @@ import { NextResponse, type NextRequest } from "next/server";
 
 type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
+// Paths reachable without a session.
+const PUBLIC_PREFIXES = ["/login", "/auth", "/api/jobs"];
+
+function isPublic(pathname: string): boolean {
+  return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/") || pathname === p);
+}
+
 export async function updateSession(request: NextRequest) {
   const supabaseResponse = NextResponse.next({ request });
 
@@ -10,9 +17,6 @@ export async function updateSession(request: NextRequest) {
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   // If Supabase isn't configured, skip the auth refresh and pass through.
-  // Without this guard createServerClient throws "Your project's URL and Key
-  // are required", crashing the edge middleware on every route (500
-  // MIDDLEWARE_INVOCATION_FAILED).
   if (!url || !anonKey) {
     return supabaseResponse;
   }
@@ -25,9 +29,7 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet: CookieToSet[]) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value),
-          );
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           response = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options),
@@ -36,11 +38,32 @@ export async function updateSession(request: NextRequest) {
       },
     });
 
-    // Refresh session so it doesn't expire while user is active
-    await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const pathname = request.nextUrl.pathname;
+
+    // Lock-down: anonymous visitors are redirected to /login for every app
+    // route. Public prefixes (login, auth callback, cron job) are exempt.
+    if (!user && !isPublic(pathname)) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/login";
+      redirectUrl.searchParams.set("next", pathname);
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    // Signed-in users hitting /login go to the board.
+    if (user && pathname === "/login") {
+      const boardUrl = request.nextUrl.clone();
+      boardUrl.pathname = "/";
+      boardUrl.search = "";
+      return NextResponse.redirect(boardUrl);
+    }
+
     return response;
   } catch {
-    // Never let an auth hiccup crash the entire edge middleware
+    // Never let an auth hiccup crash the entire edge middleware.
     return supabaseResponse;
   }
 }

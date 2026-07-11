@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { VERTICALS } from "@/lib/stages";
+import { getSessionUser, canEditDeals } from "@/lib/auth";
 import type { Deal } from "@/lib/types";
 
 export interface ActionState {
@@ -28,10 +29,15 @@ export async function createDeal(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const user = await getSessionUser();
+  if (!user) return { error: "You must be signed in to create a deal." };
+  if (!canEditDeals(user.role))
+    return { error: `Your role (${user.role}) cannot create deals.` };
+
   const company = str(formData, "company");
   const vertical = str(formData, "vertical");
   const source = str(formData, "source");
-  const owner_name = str(formData, "owner_name");
+  const owner_name = str(formData, "owner_name") || user.fullName;
   const industry = str(formData, "industry");
   const priority = str(formData, "priority") || "Medium";
 
@@ -52,6 +58,7 @@ export async function createDeal(
   const { data, error } = await supabase
     .from("deals")
     .insert({
+      user_id: user.id,
       company,
       industry: industry || null,
       vertical,
@@ -75,7 +82,7 @@ export async function createDeal(
   await writeAudit({
     deal_id: data.id,
     event_type: "deal_created",
-    actor: owner_name,
+    actor: user.fullName,
     metadata: { company, vertical, source, stage },
   });
 
@@ -88,7 +95,14 @@ export async function updateDeal(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const user = await getSessionUser();
+  if (!user) return { error: "You must be signed in to edit a deal." };
+  if (!canEditDeals(user.role))
+    return { error: `Your role (${user.role}) is read-only for deals.` };
+
   const supabase = await createClient();
+  // RLS scopes this read: a Manager cannot fetch another Manager's deal, so
+  // this returns "not found" for deals they may not edit.
   const { data: existing, error: fetchError } = await supabase
     .from("deals")
     .select("*")
@@ -169,7 +183,7 @@ export async function updateDeal(
   await writeAudit({
     deal_id: dealId,
     event_type: "deal_updated",
-    actor: owner_name,
+    actor: user.fullName,
     metadata: { changed },
   });
 

@@ -4,12 +4,25 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { gateBlockers, nextStage } from "@/lib/stages";
+import { getSessionUser, canEditDeals } from "@/lib/auth";
 import type { Deal, EvidenceItem, StageOutput } from "@/lib/types";
 
 export interface StageActionResult {
   error: string | null;
   blockers?: string[];
   ok?: boolean;
+}
+
+// Shared guard: caller must be signed in with a deal-editing role
+// (Manager or Head). Returns the user's authoritative name for audit actor.
+async function requireEditor(): Promise<
+  { actorName: string } | { error: string }
+> {
+  const user = await getSessionUser();
+  if (!user) return { error: "You must be signed in." };
+  if (!canEditDeals(user.role))
+    return { error: `Your role (${user.role}) is read-only for deal work.` };
+  return { actorName: user.fullName };
 }
 
 async function loadDealContext(dealId: string) {
@@ -36,6 +49,8 @@ export async function confirmStageOutput(input: {
   editedOutput?: Record<string, unknown> | null;
 }): Promise<StageActionResult> {
   const { dealId, stageOutputId, confirmedBy, editedOutput } = input;
+  const guard = await requireEditor();
+  if ("error" in guard) return guard;
   if (!confirmedBy.trim()) return { error: "A named confirmer is required." };
 
   const supabase = await createClient();
@@ -87,6 +102,8 @@ export async function advanceStage(input: {
   actor: string;
 }): Promise<StageActionResult> {
   const { dealId, actor } = input;
+  const guard = await requireEditor();
+  if ("error" in guard) return guard;
   if (!actor.trim()) return { error: "A named actor is required to advance a stage." };
 
   const { supabase, deal, evidence, outputs } = await loadDealContext(dealId);
@@ -178,6 +195,8 @@ export async function setConflictCheck(input: {
   confirmedBy: string;
 }): Promise<StageActionResult> {
   const { dealId, status, confirmedBy } = input;
+  const guard = await requireEditor();
+  if ("error" in guard) return guard;
   if (!["Pending", "Cleared", "Unknown"].includes(status)) return { error: "Invalid status." };
   if (status === "Cleared" && !confirmedBy.trim())
     return { error: "A named confirmer is required to clear the conflict check." };
@@ -228,6 +247,8 @@ export async function confirmOptionSelection(input: {
     depositImpact,
   } = input;
 
+  const guard = await requireEditor();
+  if ("error" in guard) return guard;
   const rm = Number(String(valueRm).replace(/[, ]/g, ""));
   if (!valueRm || !Number.isFinite(rm) || rm <= 0)
     return { error: "A value hypothesis amount (RM/year) is required." };
