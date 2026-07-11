@@ -5,6 +5,7 @@ import { computeChips, daysSinceStageChange, formatRM, weightedValue } from "@/l
 import type { Deal, EvidenceItem, StageOutput } from "@/lib/types";
 import { StatusChips } from "@/app/components/chips";
 import { DealEditForm } from "./deal-edit-form";
+import { EvidencePanel } from "./evidence-panel";
 import { StageWorkflow } from "./stage-workflow";
 
 export const dynamic = "force-dynamic";
@@ -76,6 +77,7 @@ export default async function DealPage({
               <DealEditForm deal={deal} />
             </div>
           </section>
+          <EvidencePanel deal={deal} evidence={evidence} />
         </div>
       </div>
     </div>
