@@ -76,7 +76,8 @@ export async function createDeal(
     .single();
 
   if (error || !data) {
-    return { error: `Could not create deal: ${error?.message ?? "unknown error"}` };
+    console.error("[deals:create]", error?.message);
+    return { error: "Could not create the deal. Please try again." };
   }
 
   await writeAudit({
@@ -172,7 +173,7 @@ export async function updateDeal(
   };
 
   const { error } = await supabase.from("deals").update(patch).eq("id", dealId);
-  if (error) return { error: `Save failed: ${error.message}` };
+  if (error) { console.error("[deals:update]", error.message); return { error: "Save failed. Please try again." }; }
 
   const changed: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(patch)) {

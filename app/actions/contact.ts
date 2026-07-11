@@ -115,7 +115,7 @@ export async function createContactReport(input: {
     })
     .select()
     .single();
-  if (error || !report) return { error: `Could not save contact report: ${error?.message}` };
+  if (error || !report) { console.error("[contact:save]", error?.message); return { error: "Could not save the contact report." }; }
 
   await writeAudit({
     deal_id: dealId,
@@ -172,6 +172,48 @@ export async function createContactReport(input: {
   revalidatePath(`/deals/${dealId}`);
   revalidatePath("/notifications");
   return { error: null, ok: true, escalationCreated };
+}
+
+/**
+ * PDPA right-to-erasure (privacy / data minimisation): redact the free-text
+ * raw_notes of a contact report on request, while retaining the structured
+ * fields required for audit. Only the deal owner (Manager) or the Head may do
+ * this; the redaction itself is logged.
+ */
+export async function eraseContactNotes(input: {
+  contactReportId: string;
+}): Promise<StageActionResult> {
+  const { contactReportId } = input;
+  const user = await getSessionUser();
+  if (!user || !canEditDeals(user.role))
+    return { error: "Only the deal owner or the Head may erase contact notes." };
+
+  const supabase = await createClient();
+  // RLS scopes this: a Manager can only reach reports on their own deals.
+  const { data: report } = await supabase
+    .from("contact_reports")
+    .select("id, deal_id")
+    .eq("id", contactReportId)
+    .single();
+  if (!report) return { error: "Contact report not found." };
+
+  const { error } = await supabase
+    .from("contact_reports")
+    .update({ raw_notes: "[erased on request — PDPA]" })
+    .eq("id", contactReportId);
+  if (error) {
+    console.error("[contact:erase]", error.message);
+    return { error: "Could not erase the notes." };
+  }
+
+  await writeAudit({
+    deal_id: report.deal_id,
+    event_type: "contact_report_created",
+    actor: user.fullName,
+    metadata: { action: "raw_notes_erased", contact_report_id: contactReportId },
+  });
+  revalidatePath(`/deals/${report.deal_id}`);
+  return { error: null, ok: true };
 }
 
 /** Approver resolves an escalation with notes; tracked to resolution. */

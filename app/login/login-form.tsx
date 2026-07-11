@@ -1,16 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { useSearchParams } from "next/navigation";
 
 const ROLES = ["Manager", "Head", "Approver", "Reviewer", "Admin"] as const;
 
 export function LoginForm() {
-  const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") || "/";
-  const supabase = createClient();
 
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -26,9 +23,15 @@ export function LoginForm() {
     setBusy(true);
     try {
       if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-          setError(error.message);
+        // Server-side sign-in (rate-limited, brute-force protected).
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        if (!res.ok) {
+          const payload = await res.json().catch(() => ({}));
+          setError(payload.error ?? "Sign in failed.");
           return;
         }
       } else {
@@ -36,13 +39,15 @@ export function LoginForm() {
           setError("Your name is required.");
           return;
         }
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { full_name: fullName.trim(), role } },
+        // Server-side sign-up (hardened httpOnly session cookies).
+        const res = await fetch("/api/auth/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, fullName: fullName.trim(), role }),
         });
-        if (error) {
-          setError(error.message);
+        if (!res.ok) {
+          const payload = await res.json().catch(() => ({}));
+          setError(payload.error ?? "Could not create the account.");
           return;
         }
       }

@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser, isAdmin } from "@/lib/auth";
+import { csvCell, safeFilename } from "@/lib/security";
+import { writeAudit } from "@/lib/audit";
 import type { AuditEvent } from "@/lib/types";
 
 // Admin-only, timestamped export of the immutable audit log (CSV). Returns
-// 403 for every other role.
+// 403 for every other role. CSV cells are formula-injection hardened.
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
@@ -20,7 +22,10 @@ export async function GET() {
     .from("audit_events")
     .select("*")
     .order("created_at", { ascending: true });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[audit-export]", error.message);
+    return NextResponse.json({ error: "Could not build the export." }, { status: 500 });
+  }
 
   const rows = (data ?? []) as AuditEvent[];
   const cols = [
@@ -32,21 +37,27 @@ export async function GET() {
     "prompt_template_version",
     "metadata",
   ] as const;
-  const esc = (v: unknown) => {
-    const s = v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
-    return `"${s.replace(/"/g, '""')}"`;
-  };
   const csv = [
     cols.join(","),
-    ...rows.map((r) => cols.map((c) => esc((r as unknown as Record<string, unknown>)[c])).join(",")),
-  ].join("\n");
+    ...rows.map((r) =>
+      cols.map((c) => csvCell((r as unknown as Record<string, unknown>)[c])).join(","),
+    ),
+  ].join("\r\n");
+
+  // Log the export itself as a security-relevant event (who, when, how many).
+  await writeAudit({
+    event_type: "gate_approval",
+    actor: user.fullName,
+    metadata: { action: "audit_export", rows: rows.length },
+  });
 
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   return new NextResponse(csv, {
     status: 200,
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="audit-log-${stamp}.csv"`,
+      "Content-Disposition": `attachment; filename="${safeFilename(`audit-log-${stamp}`, "csv")}"`,
+      "Cache-Control": "no-store",
     },
   });
 }

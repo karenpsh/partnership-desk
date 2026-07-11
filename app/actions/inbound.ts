@@ -61,7 +61,7 @@ export async function confirmInbound(input: {
       updated_at: new Date().toISOString(),
     })
     .eq("id", dealId);
-  if (error) return { error: `Could not confirm: ${error.message}` };
+  if (error) { console.error("[inbound:confirm]", error.message); return { error: "Could not confirm the inbound deal." }; }
 
   await writeAudit({
     deal_id: dealId,

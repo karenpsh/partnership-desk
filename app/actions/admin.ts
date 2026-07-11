@@ -46,7 +46,7 @@ export async function savePromptTemplateVersion(input: {
     is_active: true,
     updated_by: user.fullName,
   });
-  if (error) return { error: `Could not save template: ${error.message}` };
+  if (error) { console.error("[admin:template]", error.message); return { error: "Could not save template." }; }
 
   await writeAudit({
     event_type: "gate_approval",

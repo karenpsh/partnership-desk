@@ -1,11 +1,12 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { hardenCookie } from "./server";
 
 type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
 // Paths reachable without a session. The inbound webhook and the cron job are
 // machine-to-machine and authenticate with their own shared secrets.
-const PUBLIC_PREFIXES = ["/login", "/auth", "/api/jobs", "/api/inbound"];
+const PUBLIC_PREFIXES = ["/login", "/auth", "/api/auth", "/api/jobs", "/api/inbound"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/") || pathname === p);
@@ -33,7 +34,7 @@ export async function updateSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           response = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options),
+            response.cookies.set(name, value, hardenCookie(options)),
           );
         },
       },

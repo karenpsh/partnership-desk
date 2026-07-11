@@ -75,7 +75,7 @@ export async function confirmStageOutput(input: {
       human_edited_output: edited ? editedOutput : null,
     })
     .eq("id", stageOutputId);
-  if (updateError) return { error: `Could not confirm: ${updateError.message}` };
+  if (updateError) { console.error("[stage:confirm]", updateError.message); return { error: "Could not confirm the stage output." }; }
 
   if (edited) {
     await writeAudit({
@@ -128,7 +128,7 @@ export async function advanceStage(input: {
       updated_at: new Date().toISOString(),
     })
     .eq("id", dealId);
-  if (error) return { error: `Could not advance: ${error.message}` };
+  if (error) { console.error("[stage:advance]", error.message); return { error: "Could not advance the stage." }; }
 
   await writeAudit({
     deal_id: dealId,
@@ -175,7 +175,7 @@ export async function confirmTriage(input: {
       ? { status: "Parked", revisit_date: revisitDate, updated_at: new Date().toISOString() }
       : { status: "Killed", updated_at: new Date().toISOString() };
   const { error } = await supabase.from("deals").update(patch).eq("id", dealId);
-  if (error) return { error: `Could not apply verdict: ${error.message}` };
+  if (error) { console.error("[stage:verdict]", error.message); return { error: "Could not apply the verdict." }; }
 
   await writeAudit({
     deal_id: dealId,
@@ -294,7 +294,7 @@ export async function confirmOptionSelection(input: {
       updated_at: new Date().toISOString(),
     })
     .eq("id", dealId);
-  if (error) return { error: `Could not save value hypothesis: ${error.message}` };
+  if (error) { console.error("[stage:value]", error.message); return { error: "Could not save the value hypothesis." }; }
 
   revalidatePath(`/deals/${dealId}`);
   return { error: null, ok: true };

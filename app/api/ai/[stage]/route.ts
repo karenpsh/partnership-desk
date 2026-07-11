@@ -8,6 +8,13 @@ import {
 } from "@/lib/ai";
 import { proposalGenerationBlockers } from "@/lib/stages";
 import { getSessionUser, canRunAi } from "@/lib/auth";
+import {
+  rateLimit,
+  clientIp,
+  tooManyRequests,
+  isSameOrigin,
+  forbiddenCrossOrigin,
+} from "@/lib/security";
 import type { Deal, EvidenceItem } from "@/lib/types";
 
 // POST /api/ai/{triage|research|options|proposal|meeting_prep|contact_analysis}
@@ -19,10 +26,13 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ stage: string }> },
 ) {
+  // CSRF defence: this is a cookie-authed POST route handler.
+  if (!isSameOrigin(req)) return forbiddenCrossOrigin();
+
   const { stage: rawStage } = await params;
   const stage = rawStage.replace(/-/g, "_") as AiStageKey;
   if (!AI_STAGE_KEYS.includes(stage)) {
-    return NextResponse.json({ error: `Unknown AI stage: ${rawStage}` }, { status: 404 });
+    return NextResponse.json({ error: "Unknown AI stage." }, { status: 404 });
   }
 
   // Only Managers and the Head may run the AI copilot. Approver / Reviewer /
@@ -31,6 +41,10 @@ export async function POST(
   if (!user) {
     return NextResponse.json({ error: "Sign in required." }, { status: 401 });
   }
+
+  // Rate-limit AI generation per user (expensive + LLM-cost sensitive).
+  const rl = rateLimit(`ai:${user.id}:${clientIp(req)}`, 20, 60_000);
+  if (!rl.ok) return tooManyRequests(rl.retryAfter);
   if (!canRunAi(user.role)) {
     return NextResponse.json(
       { error: `Your role (${user.role}) may not run AI stages.` },
@@ -46,8 +60,13 @@ export async function POST(
   }
   const { dealId, input = "" } = body;
   const actor = user.fullName;
-  if (!dealId) {
-    return NextResponse.json({ error: "dealId is required." }, { status: 400 });
+  // Input validation: strict UUID for dealId, bounded input size.
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (typeof dealId !== "string" || !UUID.test(dealId)) {
+    return NextResponse.json({ error: "A valid dealId is required." }, { status: 400 });
+  }
+  if (typeof input !== "string" || input.length > 20_000) {
+    return NextResponse.json({ error: "Input is missing or too large." }, { status: 400 });
   }
 
   const supabase = await createClient();
@@ -171,10 +190,8 @@ export async function POST(
     .select()
     .single();
   if (storeError || !stored) {
-    return NextResponse.json(
-      { error: `Could not store AI output: ${storeError?.message}` },
-      { status: 500 },
-    );
+    console.error("[ai:store]", storeError?.message);
+    return NextResponse.json({ error: "Could not store AI output." }, { status: 500 });
   }
 
   // Stage 1 Research: create typed evidence items from the AI brief.

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth";
+import { safeFilename } from "@/lib/security";
 import type { Deal } from "@/lib/types";
 
 // Calendar integration (Phase 2): an .ics event for a deal's next follow-up,
@@ -55,7 +56,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     status: 200,
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
-      "Content-Disposition": `attachment; filename="followup-${deal.company.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.ics"`,
+      "Content-Disposition": `attachment; filename="${safeFilename(`followup-${deal.company}`, "ics")}"`,
+      "Cache-Control": "no-store",
     },
   });
 }

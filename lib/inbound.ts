@@ -58,10 +58,17 @@ export function parseInbound(payload: Record<string, unknown>): ParsedInbound {
   const explicitCompany = pick(payload, ["company", "companyName"]);
   const explicitVertical = pick(payload, ["vertical"]);
 
-  const company = explicitCompany || companyFromEmail(from, subject);
+  const company = (explicitCompany || companyFromEmail(from, subject)).slice(0, 200);
   const vertical = VERTICALS.includes(explicitVertical as (typeof VERTICALS)[number])
     ? explicitVertical
     : guessVertical(`${subject}\n${body}`);
 
-  return { from, subject, body, company, vertical };
+  // Bound stored sizes (abuse / storage-exhaustion defence).
+  return {
+    from: from.slice(0, 320),
+    subject: subject.slice(0, 500),
+    body: body.slice(0, 50_000),
+    company,
+    vertical,
+  };
 }

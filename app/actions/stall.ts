@@ -70,7 +70,7 @@ export async function decideStallReview(input: {
         ? { status: "Parked", revisit_date: newRevisitDate, updated_at: new Date().toISOString() }
         : { status: "Killed", updated_at: new Date().toISOString() };
   const { error: dealError } = await supabase.from("deals").update(dealPatch).eq("id", deal.id);
-  if (dealError) return { error: `Review saved but deal update failed: ${dealError.message}` };
+  if (dealError) { console.error("[stall:deal]", dealError.message); return { error: "Review saved, but the deal update failed." }; }
 
   await writeAudit({
     deal_id: deal.id,

@@ -114,7 +114,7 @@ export async function submitCloseout(input: {
     })
     .select()
     .single();
-  if (lessonError || !lesson) return { error: `Could not file lesson: ${lessonError?.message}` };
+  if (lessonError || !lesson) { console.error("[closeout:lesson]", lessonError?.message); return { error: "Could not file the lesson." }; }
 
   const status = outcome === "Won" ? "Live" : outcome === "Lost" ? "Killed" : "Parked";
   const { error: dealError } = await supabase
@@ -125,7 +125,7 @@ export async function submitCloseout(input: {
       updated_at: new Date().toISOString(),
     })
     .eq("id", dealId);
-  if (dealError) return { error: `Lesson filed but status update failed: ${dealError.message}` };
+  if (dealError) { console.error("[closeout:status]", dealError.message); return { error: "Lesson filed, but the status update failed." }; }
 
   await writeAudit({
     deal_id: dealId,

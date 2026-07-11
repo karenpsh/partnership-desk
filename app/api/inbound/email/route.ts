@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { parseInbound } from "@/lib/inbound";
+import { rateLimit, clientIp, tooManyRequests } from "@/lib/security";
 
 // Inbound email ingestion (Phase 2). An email provider's inbound-parse
 // webhook (or a manual forward) POSTs here; a deal is auto-created at Stage 0
@@ -19,6 +20,10 @@ export async function POST(req: NextRequest) {
       { status: 503 },
     );
   }
+  // Rate-limit by IP before doing any work (abuse / flooding defence).
+  const rl = rateLimit(`inbound:${clientIp(req)}`, 30, 60_000);
+  if (!rl.ok) return tooManyRequests(rl.retryAfter);
+
   const provided =
     req.headers.get("x-inbound-secret") ?? req.nextUrl.searchParams.get("secret") ?? "";
   if (provided !== expected) {
@@ -61,7 +66,8 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
   if (error || !deal) {
-    return NextResponse.json({ error: `Could not create inbound deal: ${error?.message}` }, { status: 500 });
+    console.error("[inbound:create]", error?.message);
+    return NextResponse.json({ error: "Could not create inbound deal." }, { status: 500 });
   }
 
   // Store the raw email as a queued triage input so the Head/owner can run
