@@ -64,6 +64,25 @@ function ErrorNote({ text }: { text: string | null }) {
   );
 }
 
+function LessonsApplied({ output }: { output: StageOutput | null }) {
+  const lessons = (output?.ai_output as { lessons_applied?: { transferable_lesson: string }[] } | null)
+    ?.lessons_applied;
+  if (!lessons || lessons.length === 0) return null;
+  return (
+    <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
+      <p className="text-xs font-semibold uppercase text-emerald-700">
+        Knowledge base applied ({lessons.length} vertical-matched lesson
+        {lessons.length > 1 ? "s" : ""})
+      </p>
+      <ul className="mt-1 list-disc pl-5 text-sm text-emerald-900">
+        {lessons.map((l, i) => (
+          <li key={i}>{l.transferable_lesson}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="rounded-lg border border-neutral-200 bg-white p-5">
@@ -440,6 +459,7 @@ function ResearchScreen({
         </>
       ) : (
         <>
+          <LessonsApplied output={output} />
           {ai?.brief &&
             Object.entries(ai.brief).map(([key, value]) => (
               <div key={key}>
@@ -611,6 +631,7 @@ function OptionsScreen({ deal, output }: { deal: Deal; output: StageOutput | nul
         </>
       ) : (
         <>
+          <LessonsApplied output={output} />
           {ai?.warning && <ErrorNote text={ai.warning} />}
           <div className="space-y-3">
             {options.map((opt, i) => {

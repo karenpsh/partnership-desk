@@ -90,7 +90,30 @@ export async function POST(
   ]
     .filter(Boolean)
     .join("\n");
-  const userInput = input ? `${context}\n\n---\n\n${input}` : context;
+
+  // Retrieval layer: Stage 1 (research) and Stage 2 (options) generations
+  // automatically include the top three vertical-matched lessons from the
+  // knowledge base, so the copilot compounds learning across deals.
+  let lessonsApplied: { transferable_lesson: string; outcome: string | null; deal_id: string }[] = [];
+  if (stage === "research" || stage === "options") {
+    const { data: lessonRows } = await supabase
+      .from("lessons")
+      .select("transferable_lesson, outcome, deal_id, created_at")
+      .eq("vertical", deal.vertical)
+      .order("created_at", { ascending: false })
+      .limit(3);
+    lessonsApplied = (lessonRows ?? []).map((l) => ({
+      transferable_lesson: l.transferable_lesson as string,
+      outcome: (l.outcome as string) ?? null,
+      deal_id: l.deal_id as string,
+    }));
+  }
+
+  const lessonsBlock = lessonsApplied.length
+    ? `\n\nRelevant lessons from past ${deal.vertical} deals (apply these):\n` +
+      lessonsApplied.map((l, i) => `${i + 1}. ${l.transferable_lesson}`).join("\n")
+    : "";
+  const userInput = (input ? `${context}\n\n---\n\n${input}` : context) + lessonsBlock;
 
   const result = await generateStageOutput(stage, userInput);
 
@@ -127,12 +150,19 @@ export async function POST(
     );
   }
 
+  // Record which knowledge-base lessons the retrieval layer applied, so the
+  // brief shows them and the provenance is auditable.
+  const outputWithLessons =
+    lessonsApplied.length > 0
+      ? { ...result.output, lessons_applied: lessonsApplied }
+      : result.output;
+
   const { data: stored, error: storeError } = await supabase
     .from("stage_outputs")
     .insert({
       deal_id: dealId,
       stage,
-      ai_output: result.output,
+      ai_output: outputWithLessons,
       ai_output_source: "llm",
       ai_output_confidence: result.confidence,
       ai_output_review_status: "unreviewed",
@@ -173,10 +203,14 @@ export async function POST(
     event_type: "ai_generation",
     actor,
     prompt_template_version: result.promptVersion,
-    ai_inputs: { stage, input },
+    ai_inputs: { stage, input, lessons_applied: lessonsApplied.map((l) => l.transferable_lesson) },
     ai_output_snapshot: result.output,
-    metadata: { stage_output_id: (stored as { id: string }).id, evidenceCreated },
+    metadata: {
+      stage_output_id: (stored as { id: string }).id,
+      evidenceCreated,
+      lessonsApplied: lessonsApplied.length,
+    },
   });
 
-  return NextResponse.json({ stageOutput: stored, evidenceCreated });
+  return NextResponse.json({ stageOutput: stored, evidenceCreated, lessonsApplied: lessonsApplied.length });
 }

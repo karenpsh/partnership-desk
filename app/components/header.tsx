@@ -29,6 +29,12 @@ export async function Header() {
             <Link href="/" className="hover:text-neutral-900">
               Pipeline
             </Link>
+            <Link href="/dashboard" className="hover:text-neutral-900">
+              Dashboard
+            </Link>
+            <Link href="/knowledge" className="hover:text-neutral-900">
+              Knowledge
+            </Link>
             <Link href="/notifications" className="hover:text-neutral-900">
               Notifications
             </Link>
