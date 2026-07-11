@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { computeChips, daysSinceStageChange, formatRM, weightedValue } from "@/lib/stages";
-import type { ContactReport, Deal, EvidenceItem, Lesson, StageOutput } from "@/lib/types";
+import type { ContactReport, Deal, EvidenceItem, Lesson, StageOutput, StallReview } from "@/lib/types";
+import { StallReviewPanel } from "./stall-review-panel";
 import { StatusChips } from "@/app/components/chips";
 import { DealEditForm } from "./deal-edit-form";
 import { EvidencePanel } from "./evidence-panel";
@@ -25,12 +26,13 @@ export default async function DealPage({
   if (error || !data) notFound();
   const deal = data as Deal;
 
-  const [evidenceRes, outputsRes, escRes, contactsRes, lessonsRes] = await Promise.all([
+  const [evidenceRes, outputsRes, escRes, contactsRes, lessonsRes, stallRes] = await Promise.all([
     supabase.from("evidence_items").select("*").eq("deal_id", id).order("created_at", { ascending: true }),
     supabase.from("stage_outputs").select("*").eq("deal_id", id),
     supabase.from("escalations").select("*").eq("deal_id", id).eq("status", "Open"),
     supabase.from("contact_reports").select("*").eq("deal_id", id).order("contact_date", { ascending: false }),
     supabase.from("lessons").select("*").eq("deal_id", id).order("created_at", { ascending: false }),
+    supabase.from("stall_reviews").select("*").eq("deal_id", id).is("decision", null),
   ]);
 
   const evidence = (evidenceRes.data ?? []) as EvidenceItem[];
@@ -38,6 +40,7 @@ export default async function DealPage({
   const openEscalations = escRes.data ?? [];
   const contactReports = (contactsRes.data ?? []) as ContactReport[];
   const lessons = (lessonsRes.data ?? []) as Lesson[];
+  const pendingStallReview = ((stallRes.data ?? []) as StallReview[])[0] ?? null;
   const chips = computeChips(deal, new Set(openEscalations.length ? [deal.id] : []));
 
   return (
@@ -68,6 +71,13 @@ export default async function DealPage({
             View escalations
           </Link>
         </div>
+      )}
+
+      {pendingStallReview && (
+        <StallReviewPanel
+          review={pendingStallReview}
+          daysSinceStageChange={daysSinceStageChange(deal)}
+        />
       )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_420px]">

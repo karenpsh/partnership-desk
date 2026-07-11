@@ -10,6 +10,7 @@ export interface AuditEntry {
     | "escalation_created"
     | "stall_triggered"
     | "stall_decision"
+    | "followup_reminder"
     | "deal_created"
     | "deal_updated"
     | "evidence_updated"
