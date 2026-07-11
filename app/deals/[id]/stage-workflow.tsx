@@ -513,7 +513,7 @@ function ResearchScreen({
           </span>
         </p>
         <p className="mt-1 text-xs text-neutral-500">
-          Does any AEON entity have an active relationship or dispute with this target? Unknown
+          Does any Anon entity have an active relationship or dispute with this target? Unknown
           means go and ask. Advancing past Research is blocked until Cleared, and the confirmer
           is recorded.
         </p>

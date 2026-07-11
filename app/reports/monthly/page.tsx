@@ -51,7 +51,7 @@ export default async function MonthlyReportPage() {
         <header className="border-b border-neutral-200 pb-4">
           <h1 className="text-2xl font-bold tracking-tight">Partnership Desk — Monthly Pack</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            AEON Bank Partnerships · confidence-weighted pipeline report
+            Anon Partnerships · confidence-weighted pipeline report
           </p>
         </header>
 

@@ -11,7 +11,7 @@ export default function LoginPage() {
           PD
         </span>
         <h1 className="text-2xl font-semibold tracking-tight">Partnership Desk</h1>
-        <p className="mt-1 text-sm text-neutral-500">AEON Bank · sign in to continue</p>
+        <p className="mt-1 text-sm text-neutral-500">Anon · sign in to continue</p>
       </div>
       <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
         <Suspense fallback={null}>

@@ -1,6 +1,6 @@
 # partnership-desk
 
-Partnership Desk is an AI-guided deal operating system for AEON Bank's partnerships team — embedding staged research, options, proposal, and contact-analysis workflows directly into each pipeline record, with enforced gates, mandatory valuation, and a compounding lesson library.
+Partnership Desk is an AI-guided deal operating system for Anon's partnerships team — embedding staged research, options, proposal, and contact-analysis workflows directly into each pipeline record, with enforced gates, mandatory valuation, and a compounding lesson library.
 
 ## ⚠️ READ THIS BEFORE WRITING ANY CODE
 A complete, correct plan for this app is already committed in `/docs`. Do **not** start

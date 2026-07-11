@@ -1,5 +1,5 @@
 # PRD: Partnership Desk
-**An AI-guided partnership operating system for AEON Bank (M) Berhad**
+**An AI-guided partnership operating system for Anon (M) Berhad**
 
 Version 1.0 · July 2026 · Owner: Head of Partnerships
 Status: Draft for review
@@ -8,9 +8,9 @@ Status: Draft for review
 
 ## 1. Problem statement
 
-AEON Bank's partnerships function must grow financing and fee income with a team of four staff, several of them junior, across six commercial verticals. Today the process quality lives in people's heads and in a shared spreadsheet held together by managerial discipline. Three failures follow predictably: junior staff produce inconsistent research and weak qualification of inbound approaches; pipeline records drift from reality because logging is voluntary; and the desk optimises deal count rather than deal value because nothing in the system carries a number.
+Anon's partnerships function must grow financing and fee income with a team of four staff, several of them junior, across six commercial verticals. Today the process quality lives in people's heads and in a shared spreadsheet held together by managerial discipline. Three failures follow predictably: junior staff produce inconsistent research and weak qualification of inbound approaches; pipeline records drift from reality because logging is voluntary; and the desk optimises deal count rather than deal value because nothing in the system carries a number.
 
-The bank's specific context raises the stakes. Its durable advantage is the AEON retail ecosystem (malls, hypermarkets, suppliers, tenants, shoppers), which every partnership must exploit to avoid being commoditised against better-capitalised digital banks. Its most urgent funding problem is deposit stickiness following the expiry of promotional rates. And every proposition must be Shariah-compliant. A generic CRM enforces none of this.
+The bank's specific context raises the stakes. Its durable advantage is the Anon retail ecosystem (malls, hypermarkets, suppliers, tenants, shoppers), which every partnership must exploit to avoid being commoditised against better-capitalised digital banks. Its most urgent funding problem is deposit stickiness following the expiry of promotional rates. And every proposition must be Shariah-compliant. A generic CRM enforces none of this.
 
 Partnership Desk is a purpose-built application that embeds a staged, AI-assisted workflow (research, options, proposal, objections, contact analysis, closeout) into the pipeline record itself, with hard gates, mandatory valuation, automated follow-up, and a knowledge base that compounds with every closed deal.
 
@@ -32,7 +32,7 @@ Partnership Desk is a purpose-built application that embeds a staged, AI-assiste
 - Not an autopilot. The AI drafts and analyses; a named human approves every artefact before it advances a stage or leaves the building.
 - No consumer-facing surface. Internal tool only.
 - No crypto, conventional-interest, or non-halal propositions anywhere in generated content (hard content rule in AI layer).
-- Phase 1 does not integrate with core banking or AEON group systems (see Phasing).
+- Phase 1 does not integrate with core banking or Anon group systems (see Phasing).
 
 ## 4. Users and roles
 
@@ -73,7 +73,7 @@ Kanban and table views across the stage machine, filterable by owner, vertical, 
 Each stage is a screen within the deal record, not a chat. The copilot runs one stage at a time and cannot be advanced past a gate by prompting.
 
 - **Stage 0 Triage (inbound only).** Staff paste the inbound material. Output: one-sentence reframe of what the party actually wants; four-lever scoring (cost of funds / CAC / asset origination / fee income) each Yes-Weak-No with reasoning; ecosystem test; red-flag checklist (one-way value, vendor-in-disguise, Shariah doubt, manufactured urgency, bank-agnostic pitch); verdict Pursue / Park / Decline with a drafted holding reply or courteous decline. Human confirms the verdict; Declines are logged, not deleted.
-- **Stage 1 Research.** Live web research producing a company brief: scale, recent moves, likely financial needs, visible banking relationships, and every AEON ecosystem touchpoint found or inferred. All items typed Verified/Inferred/Claimed. Ends with the three load-bearing facts the owner must confirm. **Group conflict check** presented here as a blocking checklist: does any AEON entity have an active relationship or dispute with this target? (Unknown = go ask; the field records who confirmed.)
+- **Stage 1 Research.** Live web research producing a company brief: scale, recent moves, likely financial needs, visible banking relationships, and every Anon ecosystem touchpoint found or inferred. All items typed Verified/Inferred/Claimed. Ends with the three load-bearing facts the owner must confirm. **Group conflict check** presented here as a blocking checklist: does any Anon entity have an active relationship or dispute with this target? (Unknown = go ask; the field records who confirmed.)
 - **Stage 2 Options.** Exactly three collaboration options, each mapped to a vertical with value exchange, revenue mechanism, and partner motivation; ranked; ecosystem-led vs bank-led flagged, with a plain warning if all three are bank-led. **Mandatory before advance:** a value hypothesis (number + one-line basis) and confidence rating for the selected option, and a deposit impact score.
 - **Stage 3 Proposal.** One-page draft (< 400 words) in the partner's language, Shariah structure named. Generation blocked if material evidence is still Claimed (Head may waive with logged reason). Human edits and approves; approved version is the artefact of record.
 - **Stage 4 Meeting prep.** Objective, opening angle, five ranked objections with responses, who to bring (retail/leasing colleague required when the ecosystem is the lead card), one thing not to do. Rendered as a prep sheet, explicitly not a script.

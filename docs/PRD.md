@@ -1,7 +1,7 @@
 # Partnership Desk — PRD
 
 ## Problem
-AEON Bank's four-person partnerships team runs on a shared spreadsheet. Junior staff produce inconsistent research; pipeline records drift because logging is voluntary; and the desk optimises deal count over value. No existing tool enforces AEON's ecosystem-first logic, deposit-stickiness mandate, or Shariah compliance.
+Anon's four-person partnerships team runs on a shared spreadsheet. Junior staff produce inconsistent research; pipeline records drift because logging is voluntary; and the desk optimises deal count over value. No existing tool enforces Anon's ecosystem-first logic, deposit-stickiness mandate, or Shariah compliance.
 
 ## Target users
 - **Manager** — partnership staff (x4): create and work own deals, run AI stages, log contacts
@@ -30,7 +30,7 @@ AEON Bank's four-person partnerships team runs on a shared spreadsheet. Junior s
 - No SSO / auth wall (Sprint 1–4); no per-user data isolation until Lock-down sprint
 - No retrieval-augmented lesson injection (lessons stored; manual consult only)
 - No mobile push, no email ingestion, no calendar integration
-- No core-banking or AEON group system integration
+- No core-banking or Anon group system integration
 - No group-automated conflict check (manual checklist only)
 
 ## Success criteria — end-to-end scenario
